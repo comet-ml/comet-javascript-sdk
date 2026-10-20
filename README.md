@@ -6,12 +6,29 @@ See the [SDK reference](docs/api.md) and the Comet [REST API documentation](http
 
 ## Installation
 
-You can use Comet JS SDK as a <script> tag from a CDN
+From npm, for Node (18+) or a bundler:
+
+```
+npm install comet-javascript-sdk
+```
+
+```js
+const { API } = require('comet-javascript-sdk');
+
+const api = new API(process.env.COMET_API_KEY);
+api.workspaces().then(names => console.log(names));
+```
+
+In a browser, as a `<script>` tag defining the global `Comet`. The package
+ships the browser bundle as `build/comet-javascript-sdk.js`, so any npm CDN
+serves it:
 
 ```html
-<!-- Use a specific Comet JS SDK release (e.g. version 1.1.7) -->
-<script src="https://cdn.comet.ml/js/comet-javascript-sdk-1.1.7.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/comet-javascript-sdk@1.2.0"></script>
 ```
+
+Releases up to 1.1.24 are on Comet's CDN only, e.g.
+`https://cdn.comet.ml/js/comet-javascript-sdk-1.1.24.js`.
 
 ## Using the SDK in JavaScript panels
 
@@ -39,6 +56,7 @@ npm install
 | `npm test` | Unit tests: every API method against a stubbed `fetch`. No network or key. |
 | `npm run test:integration` | Tests against a live Comet server. Skipped unless `COMET_API_KEY` is set. |
 | `npm run test:bundle` | Builds the browser bundle and runs a panel through it, as the Comet app does. |
+| `npm run test:package` | Packs the npm package (without publishing), checks its files, and installs and loads it. |
 | `npm run cover` | Unit tests with coverage. |
 | `npm run lint` / `npm run format` | ESLint / Prettier. |
 | `npm run build` | Builds `lib/` (the npm package's CommonJS build). |
@@ -81,11 +99,23 @@ local runs only.
 3. Push it on Github.
 4. Once reviewed, merge it on master. Nothing is uploaded when merged on master.
 
-### Deploy on production
+### Release
 
-1. Create a new release on Github, Jenkins will catch that tag and launch a build that will push two files on the CDN. The tag format must be `MAJOR.MINOR.PATCH`:
-  a. `comet-javascript-sdk-latest.js`: This is the default SDK file used by JS panels so all JS panels on Cloud and on-premise installations will start using it.
-  b. `comet-javascript-sdk-${CURRENT_TAG}.js`: This is the versioned SDK file used buy JS panels when the user force a specific version.
+1. On master, run `npm version <MAJOR.MINOR.PATCH>`. It sets the version in
+   `package.json` and `package-lock.json`, commits, and tags it (`.npmrc`
+   makes the tag plain `1.2.0`, not `v1.2.0`).
+2. Push the commit and the tag: `git push --follow-tags`.
+
+The tag starts two builds:
+
+- **npm** (`.github/workflows/release.yml`): checks the tag matches
+  `package.json` and that `build/` and `docs/` are up to date, then runs the
+  tests and publishes the package with provenance. It runs in the `npm`
+  environment, which can require an approval, and authenticates with npm
+  trusted publishing (or an `NPM_TOKEN` secret).
+- **CDN** (Jenkins, `scripts/Jenkinsfile`): uploads the bundle to
+  `cdn.comet.ml/js/` as `comet-javascript-sdk-<tag>.js` and
+  `comet-javascript-sdk-latest.js`, for panels that load the SDK from `/js/`.
 
 ### Deploy on on-premise installations
 

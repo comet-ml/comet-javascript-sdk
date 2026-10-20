@@ -1,0 +1,58 @@
+name: Release
+# Publishes the package to npm when a MAJOR.MINOR.PATCH tag is pushed (the
+# same tags Jenkins builds the CDN bundle from). Make a release with
+# `npm version <x.y.z>` (see .npmrc) and push the commit and tag.
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Protect this environment (required reviewers) in the repo settings to
+    # approve each publish.
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing and provenance
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing (no token) needs npm 11.5.1 or newer.
+      - run: npm install --global npm@11.5.1
+      - name: Check the tag matches package.json
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "$GITHUB_REF_NAME" != "$VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $VERSION."
+            exit 1
+          fi
+      - run: npm ci
+      - run: npm run format:check
+      - name: Check the committed bundle and docs are up to date
+        run: |
+          npm run pack
+          npm run docs
+          if ! git diff --exit-code -- build/ docs/; then
+            echo "::error::build/ or docs/ is out of date for this tag."
+            exit 1
+          fi
+      # prepublishOnly lints, tests, and builds lib/ and the bundle first.
+      # Authenticates with npm trusted publishing, or with an NPM_TOKEN
+      # secret if one is set.
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

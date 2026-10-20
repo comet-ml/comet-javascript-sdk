@@ -1,8 +1,10 @@
 {
   "name": "comet-javascript-sdk",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "JavaScript client for the Comet REST API, and the base classes for Comet JavaScript panels",
   "main": "./lib/index.js",
+  "unpkg": "./build/comet-javascript-sdk.js",
+  "jsdelivr": "./build/comet-javascript-sdk.js",
   "engines": {
     "node": ">=18"
   },
@@ -19,6 +21,7 @@
     "test:integration": "mocha --timeout 30000 test/integration",
     "test:all": "mocha --timeout 30000 test/unit test/integration",
     "test:bundle": "npm run pack && mocha test/bundle",
+    "test:package": "npm run build && npm run pack && node scripts/check-package.js",
     "test:watch": "mocha --watch test/unit",
     "cover": "c8 --reporter=text --reporter=lcov mocha test/unit",
     "lint": "eslint .",
@@ -28,25 +31,31 @@
     "pack": "webpack --config webpack/webpack.config.build.js",
     "docs": "node scripts/build-docs.js",
     "sync-frontend": "npm run pack && node scripts/sync-frontend.js",
-    "prepublishOnly": "npm run clean && npm run lint && npm test && npm run build",
+    "prepublishOnly": "npm run clean && npm run lint && npm test && npm run build && npm run test:bundle",
     "examples": "npm run pack && http-server -a localhost -p 8090 -o /examples/chart.html"
   },
   "files": [
     "lib",
+    "build/comet-javascript-sdk.js",
     "src"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/comet-ml/comet-javascript-api"
+    "url": "git+https://github.com/comet-ml/comet-javascript-sdk.git"
   },
   "keywords": [
-    "comet.ml",
-    "npm",
-    "module",
-    "node",
-    "javascript"
+    "comet",
+    "comet-ml",
+    "machine-learning",
+    "experiment-tracking",
+    "rest-api",
+    "panels"
   ],
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "bugs": {
     "url": "https://github.com/comet-ml/comet-javascript-sdk/issues"
   },
