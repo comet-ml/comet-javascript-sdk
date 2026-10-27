@@ -8,6 +8,7 @@ const os = require('os');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
+const { name } = require(path.join(root, 'package.json'));
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'comet-package-'));
 const npm = (args, cwd) =>
   execFileSync('npm', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
@@ -54,7 +55,7 @@ try {
     'node',
     [
       '-e',
-      "const C = require('comet-javascript-sdk');" +
+      `const C = require('${name}');` +
         "console.log(typeof C.API, typeof C.Panel, new C.API('k').getVersion())"
     ],
     { cwd: project, encoding: 'utf8' }
@@ -62,10 +63,9 @@ try {
   if (loaded !== 'function function v2') fail(`require() gave: ${loaded}`);
 
   // The browser bundle, as the Comet frontend embeds it
-  const bundle = require.resolve(
-    'comet-javascript-sdk/build/comet-javascript-sdk.js',
-    { paths: [project] }
-  );
+  const bundle = require.resolve(`${name}/build/comet-javascript-sdk.js`, {
+    paths: [project]
+  });
   if (!fs.readFileSync(bundle, 'utf8').startsWith('var Comet')) {
     fail('the bundle does not define the global Comet');
   }

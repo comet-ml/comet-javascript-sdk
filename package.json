@@ -1,5 +1,5 @@
 {
-  "name": "comet-javascript-sdk",
+  "name": "@comet-ml/javascript-sdk",
   "version": "1.2.0",
   "description": "JavaScript client for the Comet REST API, and the base classes for Comet JavaScript panels",
   "main": "./lib/index.js",

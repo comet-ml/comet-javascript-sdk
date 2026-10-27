@@ -9,11 +9,11 @@ See the [SDK reference](docs/api.md) and the Comet [REST API documentation](http
 From npm, for Node (18+) or a bundler:
 
 ```
-npm install comet-javascript-sdk
+npm install @comet-ml/javascript-sdk
 ```
 
 ```js
-const { API } = require('comet-javascript-sdk');
+const { API } = require('@comet-ml/javascript-sdk');
 
 const api = new API(process.env.COMET_API_KEY);
 api.workspaces().then(names => console.log(names));
@@ -24,7 +24,7 @@ ships the browser bundle as `build/comet-javascript-sdk.js`, so any npm CDN
 serves it:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/comet-javascript-sdk@1.2.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@comet-ml/javascript-sdk@1.2.0"></script>
 ```
 
 Releases up to 1.1.24 are on Comet's CDN only, e.g.
