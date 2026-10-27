@@ -6,17 +6,35 @@ See the [SDK reference](docs/api.md) and the Comet [REST API documentation](http
 
 ## Installation
 
-You can use Comet JS SDK as a <script> tag from a CDN
+From npm, for Node (18+) or a bundler:
+
+```
+npm install @comet-ml/javascript-sdk
+```
+
+```js
+const { API } = require('@comet-ml/javascript-sdk');
+
+const api = new API(process.env.COMET_API_KEY);
+api.workspaces().then(names => console.log(names));
+```
+
+In a browser, as a `<script>` tag defining the global `Comet`. The package
+ships the browser bundle as `build/comet-javascript-sdk.js`, so any npm CDN
+serves it:
 
 ```html
-<!-- Use a specific Comet JS SDK release (e.g. version 1.1.7) -->
-<script src="https://cdn.comet.ml/js/comet-javascript-sdk-1.1.7.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@comet-ml/javascript-sdk@2.0.0"></script>
 ```
+
+Releases up to 1.1.24 were published only to Comet's own CDN (e.g.
+`https://cdn.comet.ml/js/comet-javascript-sdk-1.1.24.js`); releases from 2.0.0
+are on npm only.
 
 ## Using the SDK in JavaScript panels
 
-Comet's JavaScript panels load this SDK as `/js/comet-javascript-sdk-latest.js`
-and construct your panel (a class extending `Comet.Panel`) with a **project
+Comet's JavaScript panels include this SDK (the Comet app embeds the browser
+bundle in each panel) and construct your panel (a class extending `Comet.Panel`) with a **project
 token**, not your API key. A project token can read the panel's own project
 and its experiments, and the panel's store. Methods that list workspaces and
 projects or act as the user (`workspaces()`, `projects()`, `get()` and
@@ -39,6 +57,7 @@ npm install
 | `npm test` | Unit tests: every API method against a stubbed `fetch`. No network or key. |
 | `npm run test:integration` | Tests against a live Comet server. Skipped unless `COMET_API_KEY` is set. |
 | `npm run test:bundle` | Builds the browser bundle and runs a panel through it, as the Comet app does. |
+| `npm run test:package` | Packs the npm package (without publishing), checks its files, and installs and loads it. |
 | `npm run cover` | Unit tests with coverage. |
 | `npm run lint` / `npm run format` | ESLint / Prettier. |
 | `npm run build` | Builds `lib/` (the npm package's CommonJS build). |
@@ -81,14 +100,23 @@ local runs only.
 3. Push it on Github.
 4. Once reviewed, merge it on master. Nothing is uploaded when merged on master.
 
-### Deploy on production
+### Release
 
-1. Create a new release on Github, Jenkins will catch that tag and launch a build that will push two files on the CDN. The tag format must be `MAJOR.MINOR.PATCH`:
-  a. `comet-javascript-sdk-latest.js`: This is the default SDK file used by JS panels so all JS panels on Cloud and on-premise installations will start using it.
-  b. `comet-javascript-sdk-${CURRENT_TAG}.js`: This is the versioned SDK file used buy JS panels when the user force a specific version.
+1. In a pull request, set the new version:
+   `npm version <MAJOR.MINOR.PATCH> --no-git-tag-version` (updates
+   `package.json` and `package-lock.json`). Merge it.
+2. Tag the merged commit on master with that version, plain `2.0.0` (not
+   `v2.0.0`), and push the tag:
+   `git checkout master && git pull && git tag 2.0.0 && git push origin 2.0.0`.
 
-### Deploy on on-premise installations
+The tag starts `.github/workflows/release.yml`, in two jobs:
 
-The comet-backend keep a list of all versions here for air-gapped environment: https://github.com/comet-ml/comet-backend/blob/master/comet-api/src/main/resources/supportedVisualizationResourcesOnPrem.json
+- **build** (no credentials): checks the tag is on master and matches
+  `package.json`, and that `build/` and `docs/` are up to date; runs the lint,
+  tests, and package check; and packs the tarball.
+- **publish**: after an approval in the `npm` environment, uploads that
+  tarball to npm, without installing dependencies or running package scripts.
+  It authenticates with npm trusted publishing (or an `NPM_TOKEN` secret).
 
-When adding a new version, add a PR to the backend to list the new version.
+The Comet app takes the new bundle with `npm run sync-frontend` (see
+`scripts/sync-frontend.js`).

@@ -1,7 +1,7 @@
 const path = require('path');
 
-// Builds the browser bundle, exposed as the global `Comet`. This is the file
-// the Comet app serves to JavaScript panels as comet-javascript-sdk-latest.js.
+// Builds the browser bundle, exposed as the global `Comet`: shipped in the npm
+// package, and embedded by the Comet app in JavaScript panels.
 module.exports = {
   mode: 'production',
   entry: './src/index.js',
