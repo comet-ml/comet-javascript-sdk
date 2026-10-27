@@ -109,11 +109,14 @@ local runs only.
    `v2.0.0`), and push the tag:
    `git checkout master && git pull && git tag 2.0.0 && git push origin 2.0.0`.
 
-The tag starts `.github/workflows/release.yml`: it checks the tag is on
-master, matches `package.json`, and that `build/` and `docs/` are up to date,
-then runs the tests and publishes the package to npm. It runs in the `npm`
-environment, which requires an approval, and authenticates with npm trusted
-publishing (or an `NPM_TOKEN` secret).
+The tag starts `.github/workflows/release.yml`, in two jobs:
+
+- **build** (no credentials): checks the tag is on master and matches
+  `package.json`, and that `build/` and `docs/` are up to date; runs the lint,
+  tests, and package check; and packs the tarball.
+- **publish**: after an approval in the `npm` environment, uploads that
+  tarball to npm, without installing dependencies or running package scripts.
+  It authenticates with npm trusted publishing (or an `NPM_TOKEN` secret).
 
 The Comet app takes the new bundle with `npm run sync-frontend` (see
 `scripts/sync-frontend.js`).

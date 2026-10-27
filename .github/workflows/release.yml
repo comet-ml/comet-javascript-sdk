@@ -1,6 +1,11 @@
 name: Release
 # Publishes the package to npm when a MAJOR.MINOR.PATCH tag is pushed on
 # master. See "Release" in the README.
+#
+# Two jobs, so that no dependency code ever runs with publish rights: `build`
+# checks, tests, and packs the tarball without any credentials; `publish`
+# (approved in the `npm` environment) only uploads that tarball, without
+# installing dependencies or running any package scripts.
 on:
   push:
     tags: ['[0-9]+.[0-9]+.[0-9]+']
@@ -13,16 +18,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish to npm
+  build:
+    name: Check, test, and pack
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Protect this environment (required reviewers) in the repo settings to
-    # approve each publish.
-    environment: npm
-    permissions:
-      contents: read
-      id-token: write # npm trusted publishing
+    outputs:
+      node-version: ${{ steps.node.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,9 +33,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          registry-url: https://registry.npmjs.org
-      # Trusted publishing (no token) needs npm 11.5.1 or newer.
-      - run: npm install --global npm@11.5.1
+      # The publish job has no checkout, so it gets the Node version from here.
+      - id: node
+        run: echo "version=$(cat .nvmrc)" >> "$GITHUB_OUTPUT"
       # Only reviewed code is published: a tag on a commit that never reached
       # master (e.g. on a feature branch) is refused.
       - name: Check the tagged commit is on master
@@ -50,7 +51,9 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $VERSION."
             exit 1
           fi
-      - run: npm ci
+      # No dependency needs an install script (only the macOS-only fsevents
+      # has one), so none are run.
+      - run: npm ci --ignore-scripts
       - run: npm run format:check
       - name: Check the committed bundle and docs are up to date
         run: |
@@ -60,9 +63,45 @@ jobs:
             echo "::error::build/ or docs/ is out of date for this tag."
             exit 1
           fi
-      # prepublishOnly lints, tests, and builds lib/ and the bundle first.
+      # Lints, tests, and builds lib/ and the bundle, as `npm publish` would.
+      - run: npm run prepublishOnly
+      # Installs and loads the packed package, as users will.
+      - run: npm run test:package
+      - name: Pack
+        run: |
+          mkdir dist
+          npm pack --ignore-scripts --pack-destination dist
+          ls -l dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package
+          path: dist/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish to npm
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Requires approval: protect this environment (required reviewers) in
+    # the repo settings before the first release tag is pushed.
+    environment: npm
+    permissions:
+      id-token: write # npm trusted publishing
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ needs.build.outputs.node-version }}
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing (no token) needs npm 11.5.1 or newer.
+      - run: npm install --global --ignore-scripts npm@11.5.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: package
+          path: dist
       # Authenticates with npm trusted publishing, or with an NPM_TOKEN
       # secret if one is set.
-      - run: npm publish
+      - run: npm publish --ignore-scripts dist/*.tgz
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

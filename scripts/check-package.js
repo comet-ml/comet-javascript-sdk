@@ -46,7 +46,13 @@ try {
   fs.mkdirSync(project);
   fs.writeFileSync(path.join(project, 'package.json'), '{"private": true}');
   npm(
-    ['install', '--no-audit', '--no-fund', path.join(tmpDir, packed.filename)],
+    [
+      'install',
+      '--no-audit',
+      '--no-fund',
+      '--ignore-scripts',
+      path.join(tmpDir, packed.filename)
+    ],
     project
   );
 
