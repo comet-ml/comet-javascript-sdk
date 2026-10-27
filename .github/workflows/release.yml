@@ -102,6 +102,7 @@ jobs:
           path: dist
       # Authenticates with npm trusted publishing, or with an NPM_TOKEN
       # secret if one is set.
-      - run: npm publish --ignore-scripts dist/*.tgz
+      # `./`: without it npm reads `dist/x.tgz` as a GitHub `user/repo`.
+      - run: npm publish --ignore-scripts ./dist/*.tgz
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
