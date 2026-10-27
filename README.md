@@ -24,7 +24,7 @@ ships the browser bundle as `build/comet-javascript-sdk.js`, so any npm CDN
 serves it:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@comet-ml/javascript-sdk@1.2.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@comet-ml/javascript-sdk@2.0.0"></script>
 ```
 
 Releases up to 1.1.24 are on Comet's CDN only, e.g.
@@ -101,18 +101,20 @@ local runs only.
 
 ### Release
 
-1. On master, run `npm version <MAJOR.MINOR.PATCH>`. It sets the version in
-   `package.json` and `package-lock.json`, commits, and tags it (`.npmrc`
-   makes the tag plain `1.2.0`, not `v1.2.0`).
-2. Push the commit and the tag: `git push --follow-tags`.
+1. In a pull request, set the new version:
+   `npm version <MAJOR.MINOR.PATCH> --no-git-tag-version` (updates
+   `package.json` and `package-lock.json`). Merge it.
+2. Tag the merged commit on master with that version, plain `2.0.0` (not
+   `v2.0.0`), and push the tag:
+   `git checkout master && git pull && git tag 2.0.0 && git push origin 2.0.0`.
 
 The tag starts two builds:
 
-- **npm** (`.github/workflows/release.yml`): checks the tag matches
-  `package.json` and that `build/` and `docs/` are up to date, then runs the
-  tests and publishes the package with provenance. It runs in the `npm`
-  environment, which can require an approval, and authenticates with npm
-  trusted publishing (or an `NPM_TOKEN` secret).
+- **npm** (`.github/workflows/release.yml`): checks the tag is on master,
+  matches `package.json`, and that `build/` and `docs/` are up to date, then
+  runs the tests and publishes the package. It runs in the `npm` environment,
+  which requires an approval, and authenticates with npm trusted publishing
+  (or an `NPM_TOKEN` secret).
 - **CDN** (Jenkins, `scripts/Jenkinsfile`): uploads the bundle to
   `cdn.comet.ml/js/` as `comet-javascript-sdk-<tag>.js` and
   `comet-javascript-sdk-latest.js`, for panels that load the SDK from `/js/`.

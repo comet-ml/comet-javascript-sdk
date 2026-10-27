@@ -23,11 +23,12 @@ jobs:
     environment: npm
     permissions:
       contents: read
-      id-token: write # npm trusted publishing and provenance
+      id-token: write # npm trusted publishing
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # for origin/master, to check the tag is on it
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
@@ -35,6 +36,14 @@ jobs:
           registry-url: https://registry.npmjs.org
       # Trusted publishing (no token) needs npm 11.5.1 or newer.
       - run: npm install --global npm@11.5.1
+      # Only reviewed code is published: a tag on a commit that never reached
+      # master (e.g. on a feature branch) is refused.
+      - name: Check the tagged commit is on master
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error::Tag $GITHUB_REF_NAME is not on master; only master is released."
+            exit 1
+          fi
       - name: Check the tag matches package.json
         run: |
           VERSION=$(node -p "require('./package.json').version")
