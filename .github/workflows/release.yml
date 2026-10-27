@@ -1,7 +1,6 @@
 name: Release
-# Publishes the package to npm when a MAJOR.MINOR.PATCH tag is pushed (the
-# same tags Jenkins builds the CDN bundle from). Make a release with
-# `npm version <x.y.z>` (see .npmrc) and push the commit and tag.
+# Publishes the package to npm when a MAJOR.MINOR.PATCH tag is pushed on
+# master. See "Release" in the README.
 on:
   push:
     tags: ['[0-9]+.[0-9]+.[0-9]+']

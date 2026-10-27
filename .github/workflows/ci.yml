@@ -37,9 +37,8 @@ jobs:
       - run: npm run test:bundle
       - run: npm run test:package
 
-  # The browser bundle and docs/api.md are committed (Jenkins uploads the
-  # bundle to the CDN from a release tag, and the npm package ships it), so
-  # they must match the source.
+  # The browser bundle and docs/api.md are committed (the npm package ships
+  # the bundle, and the Comet app copies it), so they must match the source.
   generated-files:
     name: Bundle and docs are up to date
     runs-on: ubuntu-latest

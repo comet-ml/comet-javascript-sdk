@@ -27,13 +27,14 @@ serves it:
 <script src="https://cdn.jsdelivr.net/npm/@comet-ml/javascript-sdk@2.0.0"></script>
 ```
 
-Releases up to 1.1.24 are on Comet's CDN only, e.g.
-`https://cdn.comet.ml/js/comet-javascript-sdk-1.1.24.js`.
+Releases up to 1.1.24 were published only to Comet's own CDN (e.g.
+`https://cdn.comet.ml/js/comet-javascript-sdk-1.1.24.js`); releases from 2.0.0
+are on npm only.
 
 ## Using the SDK in JavaScript panels
 
-Comet's JavaScript panels load this SDK as `/js/comet-javascript-sdk-latest.js`
-and construct your panel (a class extending `Comet.Panel`) with a **project
+Comet's JavaScript panels include this SDK (the Comet app embeds the browser
+bundle in each panel) and construct your panel (a class extending `Comet.Panel`) with a **project
 token**, not your API key. A project token can read the panel's own project
 and its experiments, and the panel's store. Methods that list workspaces and
 projects or act as the user (`workspaces()`, `projects()`, `get()` and
@@ -108,19 +109,11 @@ local runs only.
    `v2.0.0`), and push the tag:
    `git checkout master && git pull && git tag 2.0.0 && git push origin 2.0.0`.
 
-The tag starts two builds:
+The tag starts `.github/workflows/release.yml`: it checks the tag is on
+master, matches `package.json`, and that `build/` and `docs/` are up to date,
+then runs the tests and publishes the package to npm. It runs in the `npm`
+environment, which requires an approval, and authenticates with npm trusted
+publishing (or an `NPM_TOKEN` secret).
 
-- **npm** (`.github/workflows/release.yml`): checks the tag is on master,
-  matches `package.json`, and that `build/` and `docs/` are up to date, then
-  runs the tests and publishes the package. It runs in the `npm` environment,
-  which requires an approval, and authenticates with npm trusted publishing
-  (or an `NPM_TOKEN` secret).
-- **CDN** (Jenkins, `scripts/Jenkinsfile`): uploads the bundle to
-  `cdn.comet.ml/js/` as `comet-javascript-sdk-<tag>.js` and
-  `comet-javascript-sdk-latest.js`, for panels that load the SDK from `/js/`.
-
-### Deploy on on-premise installations
-
-The comet-backend keep a list of all versions here for air-gapped environment: https://github.com/comet-ml/comet-backend/blob/master/comet-api/src/main/resources/supportedVisualizationResourcesOnPrem.json
-
-When adding a new version, add a PR to the backend to list the new version.
+The Comet app takes the new bundle with `npm run sync-frontend` (see
+`scripts/sync-frontend.js`).
