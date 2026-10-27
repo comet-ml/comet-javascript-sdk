@@ -1,0 +1,107 @@
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:bundle
+
+  # The browser bundle and docs/api.md are committed (Jenkins uploads the
+  # bundle to the CDN from a release tag), so they must match the source.
+  generated-files:
+    name: Bundle and docs are up to date
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run pack
+      - run: npm run docs
+      - name: Check for uncommitted changes
+        run: |
+          if ! git diff --exit-code -- build/ docs/; then
+            echo "::error::Run 'npm run pack' and 'npm run docs', then commit build/ and docs/."
+            exit 1
+          fi
+
+  # Runs against comet.com, reading the experiment made by
+  # test/integration/experiment.py. The key is a secret, the rest are
+  # repository variables. Until all are set (and on pull requests from
+  # forks, which get no secrets) the tests skip themselves.
+  #
+  # A pull request runs its own copy of this file, so a check here cannot
+  # keep the key from a same-repository PR. Keep COMET_API_KEY as a secret of
+  # the `integration` environment, whose protection rules (set in the repo
+  # settings, e.g. required reviewers) GitHub enforces whatever the PR does.
+  integration:
+    name: Integration (comet.com)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: test
+    environment: integration
+    env:
+      COMET_URL: ${{ vars.COMET_URL || 'https://www.comet.com/' }}
+      COMET_TEST_WORKSPACE: ${{ vars.COMET_TEST_WORKSPACE }}
+      COMET_TEST_PROJECT: ${{ vars.COMET_TEST_PROJECT }}
+      COMET_TEST_PROJECT_ID: ${{ vars.COMET_TEST_PROJECT_ID }}
+      COMET_TEST_EXPERIMENT_KEY: ${{ vars.COMET_TEST_EXPERIMENT_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Check settings and server
+        env:
+          HAS_API_KEY: ${{ secrets.COMET_API_KEY != '' }}
+        run: |
+          if [ "$HAS_API_KEY" != true ] || [ -z "$COMET_TEST_EXPERIMENT_KEY" ]; then
+            echo "::warning::COMET_API_KEY secret or COMET_TEST_* variables not set; integration tests will be skipped."
+            exit 0
+          fi
+          # Fail in seconds, not one timeout per test, if the server is unreachable.
+          curl --fail --silent --show-error --output /dev/null --max-time 15 \
+            "${COMET_URL%/}/api/isAlive/ping"
+      # Only this step gets the key: not npm ci, nor any other step.
+      - run: npm run test:integration
+        env:
+          COMET_API_KEY: ${{ secrets.COMET_API_KEY }}

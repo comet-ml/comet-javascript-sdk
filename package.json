@@ -1,0 +1,77 @@
+{
+  "name": "comet-javascript-sdk",
+  "version": "1.1.0",
+  "description": "JavaScript client for the Comet REST API, and the base classes for Comet JavaScript panels",
+  "main": "./lib/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^20.19.0 || >=22.13.0",
+      "onFail": "error"
+    }
+  },
+  "scripts": {
+    "clean": "rimraf lib coverage",
+    "test": "mocha test/unit",
+    "test:integration": "mocha --timeout 30000 test/integration",
+    "test:all": "mocha --timeout 30000 test/unit test/integration",
+    "test:bundle": "npm run pack && mocha test/bundle",
+    "test:watch": "mocha --watch test/unit",
+    "cover": "c8 --reporter=text --reporter=lcov mocha test/unit",
+    "lint": "eslint .",
+    "format": "prettier --write src test examples webpack scripts",
+    "format:check": "prettier --check src test examples webpack scripts",
+    "build": "babel src --out-dir lib",
+    "pack": "webpack --config webpack/webpack.config.build.js",
+    "docs": "node scripts/build-docs.js",
+    "sync-frontend": "npm run pack && node scripts/sync-frontend.js",
+    "prepublishOnly": "npm run clean && npm run lint && npm test && npm run build",
+    "examples": "npm run pack && http-server -a localhost -p 8090 -o /examples/chart.html"
+  },
+  "files": [
+    "lib",
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/comet-ml/comet-javascript-api"
+  },
+  "keywords": [
+    "comet.ml",
+    "npm",
+    "module",
+    "node",
+    "javascript"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/comet-ml/comet-javascript-sdk/issues"
+  },
+  "homepage": "https://github.com/comet-ml/comet-javascript-sdk",
+  "devDependencies": {
+    "@babel/cli": "^7.0.0",
+    "@babel/core": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "@babel/register": "^7.0.0",
+    "@eslint/js": "^10.0.0",
+    "babel-loader": "^10.0.0",
+    "c8": "^12.0.0",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "globals": "^17.0.0",
+    "http-server": "^14.0.0",
+    "jsdoc-to-markdown": "^9.0.0",
+    "mocha": "^12.0.0",
+    "prettier": "^3.0.0",
+    "rimraf": "^6.0.0",
+    "webpack": "^5.0.0",
+    "webpack-cli": "^6.0.0"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}

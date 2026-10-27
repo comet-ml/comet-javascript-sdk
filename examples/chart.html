@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Comet.ml | JavaScript SDK</title>
+    <meta charset="utf-8" />
+    <link
+      rel="shortcut icon"
+      href="https://www.comet.ml/favicon.ico"
+      type="image/x-icon"
+    />
+  </head>
+
+  <body>
+    <div id="chart-container"></div>
+
+    <script src="https://cdn.plot.ly/plotly-1.52.0.min.js"></script>
+    <script src="../build/comet-javascript-sdk.js"></script>
+
+    <script type="module">
+      import { BasicCustomChart } from './custom-chart-template.js';
+
+      // Settings come from the page URL, so none are stored in the repo:
+      // chart.html?projectId=PID&experimentKeys=KEY1,KEY2
+      //   [&url=https://staging.dev.comet.com/]
+      // The API key is asked for instead, so it never appears in the URL, the
+      // browser history, or a shared link.
+      const settings = new URLSearchParams(window.location.search);
+      const experimentKeys = (settings.get('experimentKeys') || '')
+        .split(',')
+        .filter(Boolean);
+
+      if (settings.get('url')) {
+        // The SDK appends API paths directly, so the URL must end with a slash.
+        Comet.config.url = settings.get('url').replace(/\/*$/, '/');
+      }
+
+      // The key is kept for this tab, per server: a link with a different
+      // `url` (even a crafted one) never gets a key entered for another
+      // server; it asks again, naming the server the key will be sent to.
+      // If the browser blocks storage, the key is only kept for this page.
+      const server = new URL(Comet.config.url).origin;
+      const storageKey = `cometApiKey:${server}`;
+      const readKey = () => {
+        try {
+          return sessionStorage.getItem(storageKey);
+        } catch {
+          return null;
+        }
+      };
+
+      let apiKey = readKey();
+      if (!apiKey) {
+        apiKey = window.prompt(
+          `Comet API key for ${server} (kept only for this tab):`
+        );
+        try {
+          if (apiKey) sessionStorage.setItem(storageKey, apiKey);
+        } catch {
+          // storage blocked: use the key for this page only
+        }
+      }
+
+      const chart = new BasicCustomChart(
+        apiKey,
+        'chart-container',
+        settings.get('projectId'),
+        'chart-id'
+      );
+
+      chart.draw(experimentKeys);
+    </script>
+  </body>
+</html>

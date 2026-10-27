@@ -1,0 +1,128 @@
+def FAIL(msg){
+  error("Fail msg: ${msg}")
+}
+def checkoutRepo() {
+  def scmVars = checkout scm
+  env.GIT_COMMIT = scmVars.GIT_COMMIT
+  env.GIT_URL = scmVars.GIT_URL
+}
+
+def setEnvVariables() {
+  /* Notes:
+  1. (npm_config_cache) Override the npm cache directory to avoid:
+     EACCES: permission denied, mkdir '/.npm'
+  2. Set home to our current directory because other bower nonsense breaks with HOME=/, e.g.:
+    EACCES: permission denied, mkdir '/.config'
+  */
+
+    env.npm_config_cache = "npm-cache"
+    // The release tag on HEAD (MAJOR.MINOR.PATCH, digits only), or "": other
+    // tags on the commit are ignored, so they can't hide a release.
+    CURRENT_TAG = sh(returnStdout: true, script: "sh scripts/release-tag.sh").trim()
+    // The tag goes into shell commands and S3 file names, so check it again.
+    if (!isVersionTag(CURRENT_TAG)) {
+      if (CURRENT_TAG) {
+        echo "Ignoring tag '${CURRENT_TAG}': not MAJOR.MINOR.PATCH"
+      }
+      CURRENT_TAG = ""
+    }
+    env.CURRENT_TAG = CURRENT_TAG
+}
+
+// MAJOR.MINOR.PATCH, digits only: the format of release tags and of .nvmrc.
+def isExactVersion(version) {
+  return version ==~ /\d+\.\d+\.\d+/
+}
+
+def isVersionTag(tag) {
+  return isExactVersion(tag)
+}
+
+def commitHasVersionTag() {
+  return isVersionTag(env.CURRENT_TAG)
+}
+
+def uploadBundleCDN() {
+  echo "uploading bundle to CDN"
+  withAWS(credentials:'jenkins-aws-s3', region:'us-east-1') {
+    BUNDLE_FILENAME="comet-javascript-sdk.js"
+    // A run that failed before the `rm -rf tmp/` below leaves tmp/ behind.
+    sh "rm -rf tmp && mkdir tmp"
+    sh "cp build/${BUNDLE_FILENAME} tmp/${BUNDLE_FILENAME}"
+    sh "gzip -9 tmp/${BUNDLE_FILENAME}"
+    sh "mv tmp/${BUNDLE_FILENAME}.gz tmp/${BUNDLE_FILENAME}"
+    if (commitHasVersionTag()) {
+      sh "mv tmp/${BUNDLE_FILENAME} tmp/comet-javascript-sdk-${CURRENT_TAG}.js"
+      sh "cp tmp/comet-javascript-sdk-${CURRENT_TAG}.js tmp/comet-javascript-sdk-latest.js"
+      s3Upload(bucket:"cdn.comet.ml", path:'js/', includePathPattern:'**/comet-javascript-sdk-*.js', workingDir:'tmp', contentEncoding: 'gzip')
+    }
+    sh "rm -rf tmp/"
+  }
+}
+
+def stage_Checkout() {
+  stage("Checkout") {
+    checkoutRepo()
+  }
+}
+
+// Build inside the Node image named by .nvmrc (the exact version CI uses),
+// not with whatever Node the agent has: the toolchain needs Node 20.19 or
+// newer. This needs the Docker Pipeline plugin, and a Docker daemon on the
+// agent (checked first, so a tag build without one fails with a clear
+// message). The image's digest is logged, to record exactly what built it.
+def stage_Build() {
+  stage("Build") {
+    def nodeVersion = readFile('.nvmrc').trim()
+    if (!isExactVersion(nodeVersion)) {
+      error(".nvmrc must pin an exact Node version (MAJOR.MINOR.PATCH), not '${nodeVersion}'")
+    }
+    if (sh(returnStatus: true, script: "docker version") != 0) {
+      error("The release build runs in the node:${nodeVersion} Docker image, but this agent has no working Docker")
+    }
+    def image = docker.image("node:${nodeVersion}")
+    image.pull()
+    sh "docker image inspect --format 'Built with {{index .RepoDigests 0}}' node:${nodeVersion}"
+    image.inside {
+      sh "node --version"
+      sh "rm -rf build"
+      sh "npm ci"
+      sh "npm run pack"
+      sh "ls -a build"
+    }
+  }
+}
+
+
+def stage_uploadCDN() {
+  stage("Uploading JS assets to cdn.comet.ml") {
+    uploadBundleCDN()
+  }
+}
+
+
+def stage_ErrorInJenkins(errorMsg) {
+  stage("Jenkins Error") {
+    if(errorMsg)
+      echo "Jenkins Error: ${errorMsg}"
+  }
+}
+
+
+node {
+
+  try {
+
+    stage_Checkout()
+    setEnvVariables()
+    stage_Build()
+    stage_uploadCDN()
+
+    } catch (Exception error) {
+      echo "error: ${error}"
+      currentBuild.result = 'FAILURE'
+      throw error
+  } finally {
+
+  }
+}
