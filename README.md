@@ -2,7 +2,8 @@
 
 ## Documentation
 
-See the [SDK reference](docs/api.md) and the Comet [REST API documentation](https://www.comet.com/docs/v2/api-and-sdk/rest-api/overview/).
+See the [SDK reference](docs/api.md), the guide to
+[writing JavaScript panels](docs/panels.md), and the Comet [REST API documentation](https://www.comet.com/docs/v2/api-and-sdk/rest-api/overview/).
 
 ## Installation
 
@@ -39,7 +40,9 @@ token**, not your API key. A project token can read the panel's own project
 and its experiments, and the panel's store. Methods that list workspaces and
 projects or act as the user (`workspaces()`, `projects()`, `get()` and
 `get(workspace)`, `accountDetails()`, `experimentStop()`) need a user API key
-and are refused inside panels. See [docs/api.md](docs/api.md).
+and are refused inside panels. See [docs/panels.md](docs/panels.md) for
+writing panels (the contract, what a panel can read, best practices) and
+[docs/api.md](docs/api.md) for every method.
 
 ## Local Development
 
