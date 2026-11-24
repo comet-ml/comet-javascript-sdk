@@ -4,6 +4,7 @@ on:
     types: [opened, edited, synchronize, reopened]
 permissions:
   contents: read
+  pull-requests: read  # the action re-reads the PR title through the API
 jobs:
   branch-naming-rules:
     runs-on: ubuntu-latest
