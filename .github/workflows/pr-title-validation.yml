@@ -4,10 +4,22 @@ on:
     types: [opened, edited, synchronize, reopened]
 permissions:
   contents: read
+  pull-requests: read  # the check re-reads the PR title through the API
 jobs:
   branch-naming-rules:
     runs-on: ubuntu-latest
     steps:
-      - uses: deepakputhraya/action-pr-title@077bddd7bdabd0d2b1b25ed0754c7e62e184d7ee # master
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          # PR title should start with [CM-1234] OR [NA] (if you dont have a ticket, you should avoid this)
+          TITLE_REGEX: '(^\[[A-Z]{2,3}-[0-9]{1,10}]|^\[NA])'
         with:
-          regex: '(^\[[A-Z]{2,3}-[0-9]{1,10}]|^\[NA])' # PR title should start with [CM-1234] OR [NA] (if you dont have a ticket, you should avoid this)
+          script: |
+            // A re-run replays the original event, so read the title as it is now.
+            const { data } = await github.rest.pulls.get({ ...context.repo, pull_number: context.payload.pull_request.number });
+            const regex = new RegExp(process.env.TITLE_REGEX);
+            if (regex.test(data.title)) {
+              core.info(`Pull request title "${data.title}" matches ${regex}`);
+            } else {
+              core.setFailed(`Pull request title "${data.title}" does not match ${regex}`);
+            }
